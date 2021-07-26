@@ -86,7 +86,7 @@ namespace KTDReaderLibrary
             {
                 var dataLength = unpackedContent.ReadByte();
                 if (length == 2)
-                    dataLength += (unpackedContent.ReadByte() << 8);
+                    dataLength += unpackedContent.ReadByte() << 8;
                 var content = new byte[dataLength - length];
                 unpackedContent.Read(content, 0, dataLength - length);
                 var record = Unpack(content, dataLength - length);
