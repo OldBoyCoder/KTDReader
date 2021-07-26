@@ -3,12 +3,13 @@
 namespace VinReaderCLI
 {
     // ReSharper disable once ClassNeverInstantiated.Global
-    class Program
+    internal class Program
     {
-        static void Main()
+        private static void Main()
         {
-            VinReader.DumpAllRecords(@"C:\Temp\SP.RT.04210.FCTLR", 2, @"C:\Temp\SP.RT.04210.TXT");
-            VinReader.DumpAllRecords(@"C:\Temp\SP.CH.04210.FCTLR", 1, @"C:\Temp\SP.CH.04210.TXT");
+            var reader = new KtdReader();
+            reader.DumpAllData( @"C:\Temp\SP.RT.04210.FCTLR", 2, @"C:\Temp\SP.RT.04210.TXT");
+            reader.DumpAllData(@"C:\Temp\SP.CH.04210.FCTLR", 1, @"C:\Temp\SP.CH.04210.TXT");
         }
 
     }

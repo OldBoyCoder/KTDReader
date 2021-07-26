@@ -1,40 +1,46 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using ICSharpCode.SharpZipLib.BZip2;
 
 namespace KTDReaderLibrary
 {
     public partial class KtdReader
     {
-        private readonly string _filename;
-        private readonly DbTableHeader _header;
-        private readonly List<List<object>> _referenceTables = new List<List<object>>();
-        private readonly DataUnpacker _unpacker;
-        private readonly int _lineLengthInBytes;
-
-        public KtdReader(String filename, int lineLengthInBytes)
+        private DbTableHeader _header;
+        public void DumpAllData(string filename, int lineLengthInBytes, string outputFile)
         {
             try
             {
-                _filename = filename;
-                _lineLengthInBytes = lineLengthInBytes;
-                using (var fileAccessor = new BinaryReader(File.Open(filename, FileMode.Open)))
+                var ms = new MemoryStream(File.ReadAllBytes(filename));
+                using (var fileAccessor = new BinaryReader(ms))
                 {
                     _header = new DbTableHeader(fileAccessor);
                     if (_header.GetDatabaseVersion() != "F3")
                     {
                         throw new Exception("Inadequate version of KTD database.");
                     }
-                    if (_header.ColumnItems.Length > 30)
+                    if (_header.ColumnItems.Count > 30)
                     {
                         throw new Exception("Corrupted or improper database file.");
                     }
-                    for (var i = 0; i < _header.NumberOfReferenceTables; i++)
+                    var blocks = GetAllPrimaryIndexBlocks(fileAccessor);
+                    using (TextWriter tw = new StreamWriter(outputFile, false))
                     {
-                        _referenceTables.Add(LoadReferenceTable(fileAccessor, i));
+                        foreach (var columnItem in _header.ColumnItems)
+                        {
+                            tw.Write($"{columnItem.FieldName}\t");
+                        }
+                        tw.WriteLine();
+                        for (var i = 0; i < blocks.Count; i++)
+                        {
+                            if (i % 500 == 0) Console.WriteLine($"{i}/{blocks.Count}");
+                            var uc = UnpackBlock(fileAccessor, blocks[i]);
+                            GetAllRecordsInBlock(uc, lineLengthInBytes, tw);
+                        }
                     }
-                    _unpacker = new DataUnpacker(_header, _referenceTables);
+                    fileAccessor.Close();
                 }
             }
             catch (FileNotFoundException)
@@ -47,37 +53,14 @@ namespace KTDReaderLibrary
             }
         }
 
-        public void DumpAllPrimaryIndexes(string outputFile)
-        {
-            using (var fileAccessor = new BinaryReader(File.Open(_filename, FileMode.Open)))
-            {
-                var blocks = GetAllPrimaryIndexBlocks(fileAccessor, _header.PrimaryKeyTablePosition, _header.PrimaryKeyLength);
-                using (TextWriter tw = new StreamWriter(outputFile, false))
-                {
-                    foreach (var columnItem in _header.ColumnItems)
-                    {
-                        tw.Write($"{columnItem.FieldName}\t");
-                    }
-                    tw.WriteLine();
-                    for (var i = 0; i < blocks.Count; i++)
-                    {
-                        if (i % 500 == 0) Console.WriteLine($"{i}/{blocks.Count}");
-                        var uc = UnpackBlock(fileAccessor, blocks[i]);
-                        GetAllPkLines(uc, _lineLengthInBytes, tw);
-                    }
-                }
-                fileAccessor.Close();
-            }
-        }
-
-        private List<BlockSize> GetAllPrimaryIndexBlocks(BinaryReader fin, long position, int keyLength)
+        private List<BlockSize> GetAllPrimaryIndexBlocks(BinaryReader fin)
         {
             var rc = new List<BlockSize>();
-            fin.BaseStream.Seek(position, SeekOrigin.Begin);
+            fin.BaseStream.Seek(_header.PrimaryKeyTablePosition , SeekOrigin.Begin);
             long numberOfLocations = fin.ReadUInt32();
             for (var i = 0; i < numberOfLocations; i++)
             {
-                fin.ReadBytes(keyLength);
+                fin.ReadBytes(_header.PrimaryKeyLength);
                 long blockStart = fin.ReadUInt32();
                 long blockEnd = fin.ReadUInt32();
                 rc.Add(new BlockSize(blockStart, blockEnd));
@@ -86,7 +69,7 @@ namespace KTDReaderLibrary
         }
 
 
-        private MemoryStream UnpackBlock(BinaryReader fin, BlockSize bSize)
+        private static MemoryStream UnpackBlock(BinaryReader fin, BlockSize bSize)
         {
             fin.BaseStream.Seek(bSize.Start, SeekOrigin.Begin);
             var result = fin.ReadBytes((int)(bSize.End - bSize.Start));
@@ -97,24 +80,16 @@ namespace KTDReaderLibrary
             return outMs;
         }
 
-        private void GetAllPkLines(MemoryStream unpackedContent, int length, TextWriter tw)
+        private void GetAllRecordsInBlock(Stream unpackedContent, int length, TextWriter tw)
         {
-            int dataLength = length;
             do
             {
-                if (length == 1)
-                {
-                    dataLength = unpackedContent.ReadByte();
-                }
-                else if (length == 2)
-                {
-                    var byte1 = unpackedContent.ReadByte();
-                    var byte2 = unpackedContent.ReadByte();
-                    dataLength = byte1 + (byte2 << 8);
-                }
+                var dataLength = unpackedContent.ReadByte();
+                if (length == 2)
+                    dataLength += (unpackedContent.ReadByte() << 8);
                 var content = new byte[dataLength - length];
                 unpackedContent.Read(content, 0, dataLength - length);
-                var record = _unpacker.Unpack(content, dataLength - length);
+                var record = Unpack(content, dataLength - length);
                 foreach (var value in record.Values)
                 {
                     tw.Write($"{value}\t");
@@ -124,18 +99,49 @@ namespace KTDReaderLibrary
 
         }
 
-        private List<Object> LoadReferenceTable(BinaryReader fin, int refTableIndex)
+        private Dictionary<string, string> Unpack(byte[] line, int length)
         {
-            List<object> referenceTable = new List<object>();
-            fin.BaseStream.Seek(_header.ReferenceTablePositions[refTableIndex], SeekOrigin.Begin);
-            var numberOfItems = (int)fin.ReadUInt32();
-            var itemFixedWidth = (int)fin.ReadUInt32();
-            for (var i = 0; i < numberOfItems; i++)
+            var record = new Dictionary<string, string>();
+            var unpackedData = UnpackRecord(line, length);
+            foreach (var columnItem in _header.ColumnItems)
             {
-                var b = fin.ReadBytes(itemFixedWidth);
-                referenceTable.Add(b.Clone());
+                var colLength = columnItem.Length;
+                if (colLength == 0)
+                    colLength = unpackedData.Length - columnItem.StartPosition;
+                record.Add(columnItem.FieldName, Encoding.ASCII.GetString(unpackedData, columnItem.StartPosition, colLength));
             }
-            return referenceTable;
+            return record;
+        }
+        private byte[] UnpackRecord(byte[] line, int length)
+        {
+            var result = new byte[_header.GetUnpackedRecordSize(length)];
+            foreach (var columnItem in _header.ColumnItems)
+            {
+                switch (columnItem.DataType)
+                {
+                    case DbDataType.DTypeReference:
+                    {
+                        var refIndex = BitConverter.ToUInt16(line, columnItem.PackedPosition);
+                        var refValue = _header.ReferenceTables[columnItem.ReferenceIndex][refIndex];
+                        Array.Copy(refValue, 0, result, columnItem.StartPosition, columnItem.Length);
+                        break;
+                    }
+                    case DbDataType.DTypeString:
+                    {
+                        var colLength = columnItem.Length;
+                        if (colLength == 0)
+                        {
+                            colLength = result.Length - columnItem.StartPosition;
+                        }
+
+                        Array.Copy(line, columnItem.PackedPosition, result, columnItem.StartPosition, colLength);
+                        break;
+                    }
+                    default:
+                        throw new Exception($"Unknown data type {columnItem.DataType}");
+                }
+            }
+            return result;
         }
     }
 }

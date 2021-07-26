@@ -1,6 +1,6 @@
 ﻿namespace KTDReaderLibrary
 {
-    enum DbDataType
+    internal enum DbDataType
     {
         DTypeString = 1,
         DTypeReference = 0

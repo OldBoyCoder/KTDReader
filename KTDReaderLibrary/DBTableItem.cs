@@ -4,12 +4,14 @@ using System.Text;
 
 namespace KTDReaderLibrary
 {
-    class DbTableItem
+    internal class DbTableItem
     {
         internal readonly string FieldName;
         internal readonly DbDataType DataType;
         internal readonly int StartPosition;
         internal readonly int Length;
+        internal int ReferenceIndex;
+        internal int PackedPosition;
 
         public DbTableItem(BinaryReader br)
         {
@@ -22,8 +24,7 @@ namespace KTDReaderLibrary
         {
             var endLength = Array.IndexOf(strByte, (byte)0);
             if (endLength < 0) endLength = strByte.Length;
-            return Encoding.Default.GetString(strByte, 0, endLength);
+            return Encoding.ASCII.GetString(strByte, 0, endLength);
         }
-
     }
 }
