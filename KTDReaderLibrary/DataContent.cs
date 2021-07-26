@@ -4,8 +4,8 @@
     {
         private class DataContent
         {
-            internal byte[] Content;
-            internal long Length;
+            internal readonly byte[] Content;
+            internal readonly long Length;
 
             public DataContent(byte[] content, int length)
             {

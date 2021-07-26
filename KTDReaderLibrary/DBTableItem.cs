@@ -23,7 +23,7 @@ namespace KTDReaderLibrary
 
         private void Init(byte[] fieldName, int type, int startPosition, int length)
         {
-            FieldName = DbTableItem.GetFixedLengthString(fieldName);
+            FieldName = GetFixedLengthString(fieldName);
             DataType = type;
             StartPosition = startPosition;
             Length = length;
@@ -32,7 +32,7 @@ namespace KTDReaderLibrary
         public static string ReadFixedLengthString(BinaryReader eraf, int length)
         {
             var r = eraf.ReadBytes(length);
-            return DbTableItem.GetFixedLengthString(r);
+            return GetFixedLengthString(r);
         }
 
         private static string GetFixedLengthString(byte[] strByte)

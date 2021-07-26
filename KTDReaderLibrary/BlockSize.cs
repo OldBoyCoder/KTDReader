@@ -4,8 +4,8 @@
     {
         private class BlockSize
         {
-            internal long Start;
-            internal long End;
+            internal readonly long Start;
+            internal readonly long End;
 
             public BlockSize(long start, long end)
             {

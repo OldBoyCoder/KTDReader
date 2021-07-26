@@ -9,13 +9,9 @@ namespace KTDReaderLibrary
     {
         private readonly string _filename;
         private readonly DbTableHeader _header;
-        private List<List<Object>> referenceTables = new List<List<object>>();
-        private DataUnpacker unpacker;
-        private int lineLengthInBytes;
-
-        public KtdReader(String filename) : this(filename, 1)
-        {
-        }
+        private readonly List<List<object>> _referenceTables = new List<List<object>>();
+        private readonly DataUnpacker _unpacker;
+        private readonly int _lineLengthInBytes;
 
         public KtdReader(String filename, int lineLengthInBytes)
         {
@@ -25,7 +21,7 @@ namespace KTDReaderLibrary
                 try
                 {
                     _filename = filename;
-                    this.lineLengthInBytes = lineLengthInBytes;
+                    this._lineLengthInBytes = lineLengthInBytes;
                     fileAccessor = new BinaryReader(File.Open(filename, FileMode.Open));
                     _header = new DbTableHeader(fileAccessor);
                     if (_header.GetDatabaseVersion() != "F3")
@@ -39,10 +35,10 @@ namespace KTDReaderLibrary
                     int i = 0;
                     while (i < _header.NumberOfReferenceTables)
                     {
-                        referenceTables.Add(LoadReferenceTable(fileAccessor, i));
+                        _referenceTables.Add(LoadReferenceTable(fileAccessor, i));
                         ++i;
                     }
-                    unpacker = new DataUnpacker(_header, referenceTables);
+                    _unpacker = new DataUnpacker(_header, _referenceTables);
                 }
                 catch (FileNotFoundException)
                 {
@@ -55,46 +51,44 @@ namespace KTDReaderLibrary
             }
             finally
             {
-                if (fileAccessor != null)
-                {
-                    fileAccessor.Close();
-                }
+                fileAccessor?.Close();
             }
         }
 
         public void DumpAllPrimaryIndexes(string outputFile)
         {
-            BinaryReader fileAccessor;
-            fileAccessor = new BinaryReader(File.Open(_filename, FileMode.Open));
-            var bFirst = true;
-            var blocks = this.GetAllPrimaryIndexBlocks(fileAccessor, _header.PrimaryKeyTablePosition, _header.PrimaryKeyLength);
-            using (TextWriter tw = new StreamWriter(outputFile, false))
+            using (var fileAccessor = new BinaryReader(File.Open(_filename, FileMode.Open)))
             {
-                for (int i = 0; i < blocks.Count; i++)
+                var bFirst = true;
+                var blocks = GetAllPrimaryIndexBlocks(fileAccessor, _header.PrimaryKeyTablePosition, _header.PrimaryKeyLength);
+                using (TextWriter tw = new StreamWriter(outputFile, false))
                 {
-                    Console.WriteLine($"{i}/{blocks.Count}");
-                    DataContent uc = unpackBlock(fileAccessor, blocks[i]);
-                    var records = GetAllPkLines(uc, true, lineLengthInBytes);
-                    if (bFirst)
+                    for (int i = 0; i < blocks.Count; i++)
                     {
-                        foreach (var value in records[0].Values)
+                        Console.WriteLine($"{i}/{blocks.Count}");
+                        DataContent uc = unpackBlock(fileAccessor, blocks[i]);
+                        var records = GetAllPkLines(uc, true, _lineLengthInBytes);
+                        if (bFirst)
                         {
-                            tw.Write($"{value.Key}\t");
+                            foreach (var value in records[0].Values)
+                            {
+                                tw.Write($"{value.Key}\t");
+                            }
+                            tw.WriteLine();
+                            bFirst = false;
                         }
-                        tw.WriteLine();
-                        bFirst = false;
-                    }
-                    foreach (var record in records)
-                    {
-                        foreach (var value in record.Values)
+                        foreach (var record in records)
                         {
-                            tw.Write($"{value.Value}\t");
+                            foreach (var value in record.Values)
+                            {
+                                tw.Write($"{value.Value}\t");
+                            }
+                            tw.WriteLine();
                         }
-                        tw.WriteLine();
                     }
                 }
+                fileAccessor.Close();
             }
-            fileAccessor.Close();
         }
 
         private List<BlockSize> GetAllPrimaryIndexBlocks(BinaryReader fin, long position, int keyLength)
@@ -150,7 +144,7 @@ namespace KTDReaderLibrary
                 var content = new byte[dataLength - length];
                 bais.Read(content, 0, dataLength - length);
 
-                rc.Add(unpacker.Unpack(content, dataLength - length));
+                rc.Add(_unpacker.Unpack(content, dataLength - length));
             } while (bais.Position < bais.Length);
 
             return rc;
