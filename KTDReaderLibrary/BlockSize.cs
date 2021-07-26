@@ -12,7 +12,6 @@
                 Start = start;
                 End = end;
             }
-
         }
     }
 }

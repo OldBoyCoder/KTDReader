@@ -1,54 +1,27 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Text;
 
 namespace KTDReaderLibrary
 {
     class DbTableItem
     {
-        // ReSharper disable once InconsistentNaming
-        internal const int D_TYPE_STRING = 1;
-        // ReSharper disable once InconsistentNaming
-        internal const int D_TYPE_REFERENCE = 0;
-        internal string FieldName;
-        internal  int DataType;
-        internal int StartPosition;
-        internal int Length;
+        internal readonly string FieldName;
+        internal readonly DbDataType DataType;
+        internal readonly int StartPosition;
+        internal readonly int Length;
 
-
-        public DbTableItem(BinaryReader eraf)
+        public DbTableItem(BinaryReader br)
         {
-            var b = eraf.ReadBytes(20);
-            Init(b, eraf.ReadByte(), eraf.ReadByte(), eraf.ReadByte());
+            FieldName = GetFixedLengthString(br.ReadBytes(20));
+            DataType = (DbDataType) br.ReadByte();
+            StartPosition = br.ReadByte();
+            Length = br.ReadByte();
         }
-
-        private void Init(byte[] fieldName, int type, int startPosition, int length)
-        {
-            FieldName = GetFixedLengthString(fieldName);
-            DataType = type;
-            StartPosition = startPosition;
-            Length = length;
-        }
-
-        public static string ReadFixedLengthString(BinaryReader eraf, int length)
-        {
-            var r = eraf.ReadBytes(length);
-            return GetFixedLengthString(r);
-        }
-
         private static string GetFixedLengthString(byte[] strByte)
         {
-            int endLength = strByte.Length;
-            int i = 0;
-            while (i < strByte.Length)
-            {
-                if (strByte[i] == 0)
-                {
-                    endLength = i;
-                    break;
-                }
-                ++i;
-            }
-
+            var endLength = Array.IndexOf(strByte, (byte)0);
+            if (endLength < 0) endLength = strByte.Length;
             return Encoding.Default.GetString(strByte, 0, endLength);
         }
 

@@ -1,4 +1,6 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace KTDReaderLibrary
@@ -30,68 +32,45 @@ namespace KTDReaderLibrary
             fin.ReadUInt32();
             fin.ReadUInt16();
             ReferenceTablePositions = new long[5];
-            int i2 = 0;
-            while (i2 < 5)
+            for (i = 0; i < 5; i++)
             {
-                ReferenceTablePositions[i2] = fin.ReadUInt32();
-                ++i2;
+                ReferenceTablePositions[i] = fin.ReadUInt32();
             }
             PrimaryKeyTablePosition = fin.ReadUInt32();
             var secondaryKeyTablePositions = new long[3];
-            i2 = 0;
-            while (i2 < 3)
+            for (i = 0; i < 3; i++)
             {
-                secondaryKeyTablePositions[i2] = fin.ReadUInt32();
-                ++i2;
+                secondaryKeyTablePositions[i] = fin.ReadUInt32();
             }
-            DbTableItem.ReadFixedLengthString(fin, 20);
+
+            fin.ReadBytes(20);
+
             var primaryKeyItems = new DbTableItem[fin.ReadByte()];
-            i2 = 0;
-            while (i2 < primaryKeyItems.Length)
+            for (i = 0; i < primaryKeyItems.Length; i++)
             {
-                primaryKeyItems[i2] = new DbTableItem(fin);
-                ++i2;
+                primaryKeyItems[i] = new DbTableItem(fin);
             }
             var secondaryKeyItems = new DbTableItem[fin.ReadByte()][];
-            int j = 0;
-            while (j < secondaryKeyItems.Length)
+            for (var j = 0; j < secondaryKeyItems.Length; j++)
             {
                 secondaryKeyItems[j] = new DbTableItem[fin.ReadByte()];
-                i = 0;
-                while (i < secondaryKeyItems[j].Length)
+                for (i = 0; i < secondaryKeyItems[j].Length; i++)
                 {
                     secondaryKeyItems[j][i] = new DbTableItem(fin);
-                    ++i;
                 }
-                ++j;
             }
             ColumnItems = new DbTableItem[fin.ReadByte()];
-            i2 = 0;
-            while (i2 < ColumnItems.Length)
+            for (i = 0;i < ColumnItems.Length;i++)
             {
-                ColumnItems[i2] = new DbTableItem(fin);
-                ++i2;
+                ColumnItems[i] = new DbTableItem(fin);
             }
-            PrimaryKeyLength = 0;
-            i2 = 0;
-            while (i2 < primaryKeyItems.Length)
-            {
-                PrimaryKeyLength += primaryKeyItems[i2].Length;
-                ++i2;
-            }
+
+            PrimaryKeyLength = primaryKeyItems.Sum(x => x.Length);
+
             var secondaryKeyLengths = new int[secondaryKeyItems.Length];
-            j = 0;
-            while (j < secondaryKeyLengths.Length)
+            for  (var j = 0;j < secondaryKeyLengths.Length;j++)
             {
-                secondaryKeyLengths[j] = 0;
-                i = 0;
-                while (i < secondaryKeyItems[j].Length)
-                {
-                    int n = j;
-                    secondaryKeyLengths[n] = secondaryKeyLengths[n] + secondaryKeyItems[j][i].Length;
-                    ++i;
-                }
-                ++j;
+                secondaryKeyLengths[j] = secondaryKeyItems[j].Sum(x=>x.Length);
             }
             NumberOfReferenceTables = 0;
             while (NumberOfReferenceTables < ReferenceTablePositions.Length)
@@ -115,32 +94,25 @@ namespace KTDReaderLibrary
             ColumnReferenceIndex = new int[ColumnItems.Length];
             int curPos = 0;
             int curRef = 0;
-            int i = 0;
-            while (i < ColumnItems.Length)
+            for (var i = 0;i < ColumnItems.Length;i++)
             {
                 ColumnPackedPosition[i] = curPos;
-                if (ColumnItems[i].DataType == DbTableItem.D_TYPE_REFERENCE)
+                if (ColumnItems[i].DataType == DbDataType.DTypeReference)
                 {
                     ColumnReferenceIndex[i] = curRef++;
                     curPos += 2;
                 }
-                else
+                else if (ColumnItems[i].DataType == DbDataType.DTypeString)
                 {
                     ColumnReferenceIndex[i] = -1;
                     curPos += ColumnItems[i].Length;
                 }
-                ++i;
+                else
+                    throw new Exception($"Unknown data type {ColumnItems[i].DataType}");
+
             }
-            _referenceAddition = 0;
-            i = 0;
-            while (i < ColumnItems.Length)
-            {
-                if (ColumnItems[i].DataType == DbTableItem.D_TYPE_REFERENCE)
-                {
-                    _referenceAddition += ColumnItems[i].Length - 2;
-                }
-                ++i;
-            }
+            _referenceAddition = ColumnItems.Where(x => x.DataType == DbDataType.DTypeReference)
+                .Sum(x => x.Length - 2);
         }
 
     }

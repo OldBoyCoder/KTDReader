@@ -46,10 +46,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BlockSize.cs" />
-    <Compile Include="DataContent.cs" />
-    <Compile Include="DataTransformations.cs" />
     <Compile Include="DataUnpacker.cs" />
-    <Compile Include="DbRecord.cs" />
+    <Compile Include="DbDataType.cs" />
     <Compile Include="DBTableHeader.cs" />
     <Compile Include="DBTableItem.cs" />
     <Compile Include="KtdReader.cs" />

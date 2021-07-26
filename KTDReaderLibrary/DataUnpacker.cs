@@ -15,27 +15,18 @@ namespace KTDReaderLibrary
             _header = header;
         }
 
-        public DbRecord Unpack(byte[] line, int length)
+        public Dictionary<string, string> Unpack(byte[] line, int length)
         {
-            DbRecord record = new DbRecord();
+            var record = new Dictionary<string, string>();
             byte[] unpackedData = UnpackRecord(line, length);
-            int i = 0;
-            while (i < _header.ColumnItems.Length)
+            foreach (var columnItem in _header.ColumnItems)
             {
-                int colLength = _header.ColumnItems[i].Length;
+                var colLength = columnItem.Length;
                 if (colLength == 0)
-                {
-                    colLength = unpackedData.Length - _header.ColumnItems[i].StartPosition;
-                }
-                byte[] colBytes = new byte[colLength];
-                int j = 0;
-                while (j < colLength)
-                {
-                    colBytes[j] = unpackedData[_header.ColumnItems[i].StartPosition + j];
-                    ++j;
-                }
-                record.Values.Add(_header.ColumnItems[i].FieldName, Encoding.ASCII.GetString(colBytes));
-                ++i;
+                    colLength = unpackedData.Length - columnItem.StartPosition;
+//                var colBytes = new byte[colLength];
+  //              Array.Copy(unpackedData, columnItem.StartPosition, colBytes, 0, colLength);
+                record.Add(columnItem.FieldName, Encoding.ASCII.GetString(unpackedData, columnItem.StartPosition, colLength));
             }
             return record;
         }
@@ -44,33 +35,26 @@ namespace KTDReaderLibrary
         {
             byte[] result = new byte[_header.GetUnpackedRecordSize(length)];
             int i = 0;
-            while (i < _header.ColumnItems.Length)
+            foreach (var columnItem in _header.ColumnItems)
             {
-                int j;
-                if (_header.ColumnItems[i].DataType == DbTableItem.D_TYPE_REFERENCE)
+                if (columnItem.DataType == DbDataType.DTypeReference)
                 {
-                    byte[] tempb = (byte[])_referenceTables[_header.ColumnReferenceIndex[i]][DataTransformations.ReadUnsignedShortReverse(line, _header.ColumnPackedPosition[i])];
-                    j = 0;
-                    while (j < _header.ColumnItems[i].Length)
-                    {
-                        result[_header.ColumnItems[i].StartPosition + j] = tempb[j];
-                        ++j;
-                    }
+                    var refIndex = BitConverter.ToUInt16(line, _header.ColumnPackedPosition[i]);
+                    byte[] refValue = (byte[])_referenceTables[_header.ColumnReferenceIndex[i]][refIndex];
+                    Array.Copy(refValue, 0, result, columnItem.StartPosition, columnItem.Length);
                 }
-                else
+                else if (columnItem.DataType == DbDataType.DTypeString)
                 {
-                    int colLength = _header.ColumnItems[i].Length;
+                    int colLength = columnItem.Length;
                     if (colLength == 0)
                     {
-                        colLength = result.Length - _header.ColumnItems[i].StartPosition;
+                        colLength = result.Length - columnItem.StartPosition;
                     }
-                    j = 0;
-                    while (j < colLength)
-                    {
-                        result[_header.ColumnItems[i].StartPosition + j] = line[_header.ColumnPackedPosition[i] + j];
-                        ++j;
-                    }
+
+                    Array.Copy(line, _header.ColumnPackedPosition[i], result, columnItem.StartPosition, colLength);
                 }
+                else
+                    throw new Exception($"Unknown data type {columnItem.DataType}");
                 ++i;
             }
             return result;
