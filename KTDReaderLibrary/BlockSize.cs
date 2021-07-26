@@ -4,24 +4,15 @@
     {
         private class BlockSize
         {
-            internal long start;
-            internal long end;
+            internal long Start;
+            internal long End;
 
             public BlockSize(long start, long end)
             {
-                this.start = start;
-                this.end = end;
+                Start = start;
+                End = end;
             }
 
-            public long getStart()
-            {
-                return start;
-            }
-
-            public long getEnd()
-            {
-                return start;
-            }
         }
     }
 }

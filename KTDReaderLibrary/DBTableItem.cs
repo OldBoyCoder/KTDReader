@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.IO;
+using System.Text;
 
 namespace KTDReaderLibrary
 {
@@ -14,10 +15,10 @@ namespace KTDReaderLibrary
         internal int Length;
 
 
-        public DbTableItem(ExtendedRandomAccessFile eraf)
+        public DbTableItem(BinaryReader eraf)
         {
-            var b = eraf.read(20);
-            Init(b, eraf.readUnsignedByte(), eraf.readUnsignedByte(), eraf.readUnsignedByte());
+            var b = eraf.ReadBytes(20);
+            Init(b, eraf.ReadByte(), eraf.ReadByte(), eraf.ReadByte());
         }
 
         private void Init(byte[] fieldName, int type, int startPosition, int length)
@@ -28,9 +29,9 @@ namespace KTDReaderLibrary
             Length = length;
         }
 
-        public static string ReadFixedLengthString(ExtendedRandomAccessFile eraf, int length)
+        public static string ReadFixedLengthString(BinaryReader eraf, int length)
         {
-            var r = eraf.read(length);
+            var r = eraf.ReadBytes(length);
             return DbTableItem.GetFixedLengthString(r);
         }
 

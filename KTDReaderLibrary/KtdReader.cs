@@ -19,14 +19,14 @@ namespace KTDReaderLibrary
 
         public KtdReader(String filename, int lineLengthInBytes)
         {
-            ExtendedRandomAccessFile fileAccessor = null;
+            BinaryReader fileAccessor = null;
             try
             {
                 try
                 {
                     _filename = filename;
                     this.lineLengthInBytes = lineLengthInBytes;
-                    fileAccessor = new ExtendedRandomAccessFile(filename);
+                    fileAccessor = new BinaryReader(File.Open(filename, FileMode.Open));
                     _header = new DbTableHeader(fileAccessor);
                     if (_header.GetDatabaseVersion() != "F3")
                     {
@@ -57,15 +57,15 @@ namespace KTDReaderLibrary
             {
                 if (fileAccessor != null)
                 {
-                    fileAccessor.close();
+                    fileAccessor.Close();
                 }
             }
         }
 
         public void DumpAllPrimaryIndexes(string outputFile)
         {
-            ExtendedRandomAccessFile fileAccessor;
-            fileAccessor = new ExtendedRandomAccessFile(_filename);
+            BinaryReader fileAccessor;
+            fileAccessor = new BinaryReader(File.Open(_filename, FileMode.Open));
             var bFirst = true;
             var blocks = this.GetAllPrimaryIndexBlocks(fileAccessor, _header.PrimaryKeyTablePosition, _header.PrimaryKeyLength);
             using (TextWriter tw = new StreamWriter(outputFile, false))
@@ -94,20 +94,20 @@ namespace KTDReaderLibrary
                     }
                 }
             }
-            fileAccessor.close();
+            fileAccessor.Close();
         }
 
-        private List<BlockSize> GetAllPrimaryIndexBlocks(ExtendedRandomAccessFile fin, long position, int keyLength)
+        private List<BlockSize> GetAllPrimaryIndexBlocks(BinaryReader fin, long position, int keyLength)
         {
             var rc = new List<BlockSize>();
-            fin.seek(position);
-            long numberOfLocations = fin.readUnsignedIntReverse();
+            fin.BaseStream.Seek(position, SeekOrigin.Begin);
+            long numberOfLocations = fin.ReadUInt32();
             int i = 0;
             while (i < numberOfLocations)
             {
-                fin.read(keyLength);
-                long blockStart = fin.readUnsignedIntReverse();
-                long blockEnd = fin.readUnsignedIntReverse();
+                fin.ReadBytes(keyLength);
+                long blockStart = fin.ReadUInt32();
+                long blockEnd = fin.ReadUInt32();
                 rc.Add(new BlockSize(blockStart, blockEnd));
                 ++i;
             }
@@ -115,11 +115,11 @@ namespace KTDReaderLibrary
         }
 
 
-        private DataContent unpackBlock(ExtendedRandomAccessFile fin, BlockSize bSize)
+        private DataContent unpackBlock(BinaryReader fin, BlockSize bSize)
         {
-            fin.seek(bSize.start);
-            var result = fin.read((int)(bSize.end - bSize.start));
-            ByteArrayInputStream bais = new ByteArrayInputStream(result);
+            fin.BaseStream.Seek(bSize.Start, SeekOrigin.Begin);
+            var result = fin.ReadBytes((int)(bSize.End - bSize.Start));
+            var bais = new MemoryStream(result);
             var ms = new MemoryStream();
             BZip2.Decompress(bais, ms, false);
             var ba = ms.ToArray();
@@ -129,7 +129,7 @@ namespace KTDReaderLibrary
         private List<DbRecord> GetAllPkLines(DataContent unpackedContent, bool lineHasLength, int length)
         {
             var rc = new List<DbRecord>();
-            ByteArrayInputStream bais = new ByteArrayInputStream(unpackedContent.content, 0, (int)unpackedContent.getLength());
+            var bais = new MemoryStream(unpackedContent.Content, 0, (int)unpackedContent.Length);
             int dataLength = length;
             do
             {
@@ -137,33 +137,35 @@ namespace KTDReaderLibrary
                 {
                     if (length == 1)
                     {
-                        dataLength = bais.read();
+                        dataLength = bais.ReadByte();
                     }
                     else if (length == 2)
                     {
-                        int byte1 = bais.read();
-                        int byte2 = bais.read();
+                        int byte1 = bais.ReadByte();
+                        int byte2 = bais.ReadByte();
                         dataLength = byte1 + (byte2 << 8);
                     }
                 }
 
-                var content = bais.read(0, dataLength - length);
-                rc.Add(unpacker.unpack(content, dataLength - length));
-            } while (bais.EndOfStream() != true);
+                var content = new byte[dataLength - length];
+                bais.Read(content, 0, dataLength - length);
+
+                rc.Add(unpacker.Unpack(content, dataLength - length));
+            } while (bais.Position < bais.Length);
 
             return rc;
         }
 
-        private List<Object> LoadReferenceTable(ExtendedRandomAccessFile fin, int refTableIndex)
+        private List<Object> LoadReferenceTable(BinaryReader fin, int refTableIndex)
         {
             List<Object> referenceTable = new List<Object>();
-            fin.seek(_header.ReferenceTablePositions[refTableIndex]);
-            int numberOfItems = (int)fin.readUnsignedIntReverse();
-            int itemFixedWidth = (int)fin.readUnsignedIntReverse();
+            fin.BaseStream.Seek(_header.ReferenceTablePositions[refTableIndex], SeekOrigin.Begin) ;
+            int numberOfItems = (int)fin.ReadUInt32();
+            int itemFixedWidth = (int)fin.ReadUInt32();
             int i = 0;
             while (i < numberOfItems)
             {
-                var b = fin.read(itemFixedWidth);
+                var b = fin.ReadBytes(itemFixedWidth);
                 referenceTable.Add(b.Clone());
                 ++i;
             }

@@ -1,14 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace KTDReaderLibrary
 {
     class DataUnpacker
     {
-        private List<List<Object>> referenceTables;
+        private List<List<object>> referenceTables;
         private DbTableHeader header;
 
         public DataUnpacker(DbTableHeader header, List<List<Object>> referenceTables)
@@ -17,10 +15,10 @@ namespace KTDReaderLibrary
             this.header = header;
         }
 
-        public DbRecord unpack(byte[] line, int length)
+        public DbRecord Unpack(byte[] line, int length)
         {
             DbRecord record = new DbRecord();
-            byte[] unpackedData = unpackRecord(line, length);
+            byte[] unpackedData = UnpackRecord(line, length);
             int i = 0;
             while (i < header.ColumnItems.Length)
             {
@@ -42,7 +40,7 @@ namespace KTDReaderLibrary
             return record;
         }
 
-        private byte[] unpackRecord(byte[] line, int length)
+        private byte[] UnpackRecord(byte[] line, int length)
         {
             byte[] result = new byte[header.GetUnpackedRecordSize(length)];
             int i = 0;
@@ -51,7 +49,7 @@ namespace KTDReaderLibrary
                 int j;
                 if (header.ColumnItems[i].DataType == DbTableItem.D_TYPE_REFERENCE)
                 {
-                    byte[] tempb = (byte[])referenceTables[header.ColumnReferenceIndex[i]][DataTransformations.readUnsignedShortReverse(line, header.ColumnPackedPosition[i])];
+                    byte[] tempb = (byte[])referenceTables[header.ColumnReferenceIndex[i]][DataTransformations.ReadUnsignedShortReverse(line, header.ColumnPackedPosition[i])];
                     j = 0;
                     while (j < header.ColumnItems[i].Length)
                     {

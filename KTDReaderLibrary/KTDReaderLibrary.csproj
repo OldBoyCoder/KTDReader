@@ -46,18 +46,14 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BlockSize.cs" />
-    <Compile Include="ByteArrayInputStream.cs" />
     <Compile Include="DataContent.cs" />
     <Compile Include="DataTransformations.cs" />
     <Compile Include="DataUnpacker.cs" />
     <Compile Include="DbRecord.cs" />
     <Compile Include="DBTableHeader.cs" />
     <Compile Include="DBTableItem.cs" />
-    <Compile Include="ExtendedRandomAccessFile.cs" />
     <Compile Include="KtdReader.cs" />
-    <Compile Include="Pointer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="VINData.cs" />
     <Compile Include="VinReader.cs" />
   </ItemGroup>
   <ItemGroup>

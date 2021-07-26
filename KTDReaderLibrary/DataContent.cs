@@ -4,23 +4,13 @@
     {
         private class DataContent
         {
-            public byte[] content;
-            private long length;
+            internal byte[] Content;
+            internal long Length;
 
             public DataContent(byte[] content, int length)
             {
-                this.content = content;
-                this.length = length;
-            }
-
-            public byte[] getContent()
-            {
-                return content;
-            }
-
-            public long getLength()
-            {
-                return length;
+                Content = content;
+                Length = length;
             }
         }
     }

@@ -1,4 +1,4 @@
-﻿using System;
+﻿using System.IO;
 using System.Text;
 
 namespace KTDReaderLibrary
@@ -16,47 +16,47 @@ namespace KTDReaderLibrary
         internal readonly int NumberOfReferenceTables;
 
 
-        public String GetDatabaseVersion()
+        public string GetDatabaseVersion()
         {
             return _dbVersion;
         }
 
-        public DbTableHeader(ExtendedRandomAccessFile fin)
+        public DbTableHeader(BinaryReader fin)
         {
             int i;
-            fin.seek(0L);
-            var fType = fin.read(2);
+            fin.BaseStream.Seek(0, SeekOrigin.Begin);
+            var fType = fin.ReadBytes(2);
             _dbVersion = Encoding.Default.GetString(fType);
-            fin.readUnsignedIntReverse();
-            fin.readUnsignedShortReverse();
+            fin.ReadUInt32();
+            fin.ReadUInt16();
             ReferenceTablePositions = new long[5];
             int i2 = 0;
             while (i2 < 5)
             {
-                ReferenceTablePositions[i2] = fin.readUnsignedIntReverse();
+                ReferenceTablePositions[i2] = fin.ReadUInt32();
                 ++i2;
             }
-            PrimaryKeyTablePosition = fin.readUnsignedIntReverse();
+            PrimaryKeyTablePosition = fin.ReadUInt32();
             var secondaryKeyTablePositions = new long[3];
             i2 = 0;
             while (i2 < 3)
             {
-                secondaryKeyTablePositions[i2] = fin.readUnsignedIntReverse();
+                secondaryKeyTablePositions[i2] = fin.ReadUInt32();
                 ++i2;
             }
             DbTableItem.ReadFixedLengthString(fin, 20);
-            var primaryKeyItems = new DbTableItem[fin.readUnsignedByte()];
+            var primaryKeyItems = new DbTableItem[fin.ReadByte()];
             i2 = 0;
             while (i2 < primaryKeyItems.Length)
             {
                 primaryKeyItems[i2] = new DbTableItem(fin);
                 ++i2;
             }
-            var secondaryKeyItems = new DbTableItem[fin.readUnsignedByte()][];
+            var secondaryKeyItems = new DbTableItem[fin.ReadByte()][];
             int j = 0;
             while (j < secondaryKeyItems.Length)
             {
-                secondaryKeyItems[j] = new DbTableItem[fin.readUnsignedByte()];
+                secondaryKeyItems[j] = new DbTableItem[fin.ReadByte()];
                 i = 0;
                 while (i < secondaryKeyItems[j].Length)
                 {
@@ -65,7 +65,7 @@ namespace KTDReaderLibrary
                 }
                 ++j;
             }
-            ColumnItems = new DbTableItem[fin.readUnsignedByte()];
+            ColumnItems = new DbTableItem[fin.ReadByte()];
             i2 = 0;
             while (i2 < ColumnItems.Length)
             {
