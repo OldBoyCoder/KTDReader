@@ -9,8 +9,12 @@ namespace KTDReaderLibrary
     public partial class KtdReader
     {
         private DbTableHeader _header;
-        public void DumpAllData(string filename, int lineLengthInBytes, string outputFile)
+        private string _columnFilter;
+        private string _valueFilter;
+        public void DumpAllData(string filename, int lineLengthInBytes, string outputFile, string columnFilter = null, string valueFilter=null)
         {
+            _columnFilter = columnFilter;
+            _valueFilter = valueFilter;
             try
             {
                 var ms = new MemoryStream(File.ReadAllBytes(filename));
@@ -90,6 +94,11 @@ namespace KTDReaderLibrary
                 var content = new byte[dataLength - length];
                 unpackedContent.Read(content, 0, dataLength - length);
                 var record = Unpack(content, dataLength - length);
+                if (_columnFilter != null)
+                {
+                    if (!record[_columnFilter].StartsWith(_valueFilter))
+                        continue;
+                }
                 foreach (var value in record.Values)
                 {
                     tw.Write($"{value}\t");
