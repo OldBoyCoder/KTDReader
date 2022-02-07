@@ -3,7 +3,7 @@
 ## Introduction
 
 This utility will read all of the records in an 'F3' data file as used by the Fiat ePer database.  These files are used to hold records of 
-car production and so are a source of chassy and engine numbers as well as information about the
+car production and so are a source of chassis and engine numbers as well as information about the
 exact model of car.  The records only contain key information such as model reference (SINCOM)
 that can then be turned into text using the tables in the ePer database.
 
